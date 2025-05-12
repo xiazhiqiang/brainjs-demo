@@ -1,0 +1,41 @@
+{
+  "name": "brainjs-demo",
+  "version": "1.0.0",
+  "description": "brain.js demo",
+  "dependencies": {
+    "@alifd/next": "^1.x",
+    "@alifd/theme-design-pro": "^0.x",
+    "brain.js": "^2.0.0-beta.24",
+    "moment": "^2.24.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "@ali/eslint-config-att": "^1.0.0",
+    "@iceworks/spec": "^1.0.0",
+    "@types/react": "^17.0.2",
+    "@types/react-dom": "^17.0.2",
+    "build-plugin-icestark": "^2.0.0",
+    "build-plugin-ignore-style": "^0.1.0",
+    "build-plugin-moment-locales": "^0.1.0",
+    "eslint": "^7.30.0",
+    "ice.js": "^2.0.0",
+    "stylelint": "^13.7.2"
+  },
+  "scripts": {
+    "start": "icejs start",
+    "build": "icejs build",
+    "prepublishOnly": "npm run build",
+    "lint": "npm run eslint && npm run stylelint",
+    "eslint": "eslint --cache --ext .js,.jsx,.ts,.tsx ./",
+    "eslint:fix": "npm run eslint -- --fix",
+    "stylelint": "stylelint \"**/*.{css,scss,less}\""
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}
