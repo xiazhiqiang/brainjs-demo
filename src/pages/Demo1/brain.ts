@@ -29,7 +29,8 @@ async function preTrainingWithLSTM() {
     net.train(trainingData, {
       iterations: 10000,
       errorThresh: 0.005,
-      learningRate: 0,
+      learningRate: 0.001,
+      logPeriod: 1000, // 每隔多少轮打印一次日志
       log: true,
     });
 
