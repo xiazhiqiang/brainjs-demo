@@ -1,12 +1,39 @@
-export async function workerRequest(targetWorker, message: { action?: string; data?: any } = {}, targetOrigin = '*') {
+// 客户端请求
+export async function workerRequest(
+  targetWorker,
+  action: string,
+  data?: any,
+  opts?:
+    | any
+    | undefined
+    | {
+        processFn?: (data?: any) => any | null;
+        targetOrigin?: string | undefined | '*';
+      },
+): Promise<{
+  success: boolean;
+  data?: any | null;
+  error?: any | null;
+}> {
   return new Promise((resolve, reject) => {
-    const messageId = Date.now(); // 为每个消息生成一个唯一ID
+    const id = Date.now(); // 为每个消息生成一个唯一ID
+    const { targetOrigin = '*', processFn } = opts || {};
+
+    if (!action) {
+      reject(new Error('Action is required'));
+    }
 
     const messageHandler = function (event) {
-      const { id, origin, response } = event.data || {};
-      if (origin === targetOrigin && id === messageId) {
-        targetWorker.removeEventListener('message', messageHandler);
-        resolve(response);
+      const { actionId, origin, response, responseType } = event.data || {};
+      if (origin === targetOrigin && id === actionId) {
+        if (responseType === 'process') {
+          // 响应过程回调
+          typeof processFn === 'function' && processFn(response);
+        } else {
+          // 默认响应返回结果
+          targetWorker.removeEventListener('message', messageHandler);
+          resolve(response);
+        }
       }
     };
     // 监听回调
@@ -14,23 +41,36 @@ export async function workerRequest(targetWorker, message: { action?: string; da
 
     // 发送数据
     targetWorker.postMessage({
-      id: messageId,
-      action: message?.action || '',
-      data: message?.data,
-      origin: targetOrigin || '',
+      actionId: id,
+      actionType: typeof processFn === 'function' ? 'needProcess' : '',
+      action,
+      data,
+      origin: targetOrigin,
     });
   });
 }
 
+// 服务端响应调用
 export function workerResponse(target, handlers = {}, targetOrigin = '*') {
   target.addEventListener('message', async function (event) {
-    const { id, origin = '', action = '', data } = event?.data || {};
-    if (origin === targetOrigin && action) {
-      const responseMessage: any = { id, origin, response: undefined };
-      if (typeof handlers[action] === 'function') {
-        responseMessage.response = await handlers[action](data);
+    const { actionId, origin = '', action = '', actionType = '', data } = event?.data || {};
+    if (origin === targetOrigin && action && typeof handlers[action] === 'function') {
+      const result: any = { actionId, origin, response: { success: true, data: null, error: null } };
+      try {
+        // 需要中间回调
+        if (actionType === 'needProcess') {
+          result.response.data = await handlers[action](data, (processData) => {
+            target.postMessage({ actionId, actionType, origin, responseType: 'process', response: processData });
+          });
+        } else {
+          // 默认直接调用
+          result.response.data = await handlers[action](data);
+        }
+      } catch (error) {
+        result.response.success = false;
+        result.response.error = error;
       }
-      target.postMessage(responseMessage);
+      target.postMessage(result);
     }
   });
 }

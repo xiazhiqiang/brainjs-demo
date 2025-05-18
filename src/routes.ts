@@ -1,11 +1,9 @@
 import { IRouterConfig } from 'ice';
 import { renderNotFound, isInIcestark } from '@ice/stark-app';
 import BasicLayout from '@/layouts/BasicLayout';
-import Home from '@/pages/Home';
-import Detail from '@/pages/Detail';
-import List from '@/pages/List';
 import NotFound from '@/components/NotFound';
 import Demo1 from './pages/Demo1';
+import Demo2 from './pages/Demo2';
 
 const routerConfig: IRouterConfig[] = [
   {
@@ -13,21 +11,12 @@ const routerConfig: IRouterConfig[] = [
     component: BasicLayout,
     children: [
       {
-        path: '/',
-        exact: true,
-        component: Home,
-      },
-      {
-        path: '/detail',
-        component: Detail,
-      },
-      {
-        path: '/list',
-        component: List,
-      },
-      {
         path: '/demo1',
         component: Demo1,
+      },
+      {
+        path: '/demo2',
+        component: Demo2,
       },
       {
         // 微应用独立运行 404 路由渲染 NotFound 组件
