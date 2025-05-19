@@ -74,3 +74,26 @@ export function workerResponse(target, handlers = {}, targetOrigin = '*') {
     }
   });
 }
+
+export function downloadJSON(data, filename = 'data.json') {
+  // 1. 将 JSON 转换为格式化字符串
+  const jsonString = JSON.stringify(data, null, 2);
+
+  // 2. 创建 Blob 对象（二进制大对象）
+  const blob = new Blob([jsonString], { type: 'application/json' });
+
+  // 3. 生成临时下载链接
+  const url = URL.createObjectURL(blob);
+
+  // 4. 创建虚拟 <a> 标签并触发点击
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename; // 设置下载文件名
+
+  document.body.appendChild(a); // 临时添加到DOM
+  a.click(); // 模拟点击下载
+
+  // 5. 清理资源
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url); // 释放内存
+}

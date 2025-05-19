@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Icon, Select, Form, Field, Message } from '@alifd/next';
+import { Button, Icon, Select, Form, Field, Message, Table, Input, NumberPicker } from '@alifd/next';
 // @ts-ignore
 import brainWorker from './brain2?worker';
-import { workerRequest } from '@/utils';
+import { workerRequest, downloadJSON } from '@/utils';
 import {
   generateTrainData,
   trainDataEncoder,
@@ -14,9 +14,14 @@ import {
 
 export default function Demo2() {
   const workerRef = useRef<Worker | null>(null);
+  const [trainNum, setTrainNum] = useState<number>(10000);
   const [trainingStatus, setTrainingStatus] = useState<any>({});
-  const [result, setResult] = useState<any>(null);
-  const field = Field.useField({});
+
+  const field = Field.useField({
+    onChange: async (name, value) => {
+      // console.log('onChange', name, value);
+    },
+  });
 
   useEffect(() => {
     // // 生成并导出数据集
@@ -36,123 +41,185 @@ export default function Demo2() {
     };
   }, []);
 
+  const modelFeatures = field.getValue('modelFeatures') || {
+    model_name: '',
+    base_model_name: '',
+    input_limit: '',
+    output_limit: '',
+    input_output_mode: '',
+    industries: '',
+    applications: '',
+    model_advantages: '',
+    is_open_source: '',
+  };
+
   return (
     <div style={{ padding: 20 }}>
       <h1>Demo2</h1>
+      <div style={{ margin: '10px 0' }}>
+        <label>预训练数据集：</label>
+        <NumberPicker min={1} defaultValue={trainNum} onChange={setTrainNum} />
+        <span style={{ margin: '0 4px' }}>条数据</span>
+        <Button
+          type="primary"
+          loading={trainingStatus?.status === 'preTraining'}
+          onClick={async () => {
+            // 预训练
+            setTrainingStatus({ status: 'preTraining' });
+            const res = await workerRequest(
+              workerRef.current,
+              'preTraining2',
+              { total: trainNum },
+              { targetOrigin: 'demo2', processFn: setTrainingStatus },
+            );
+            console.log('preTraining', res);
+          }}
+        >
+          {trainingStatus?.status === 'ready' ? (
+            <>
+              <Icon type="success" style={{ color: 'white' }} />
+            </>
+          ) : null}
+          训练
+        </Button>
 
-      <Button
-        onClick={async () => {
-          // 训练完成
-          const res = await workerRequest(
-            workerRef.current,
-            'preTraining2',
-            { total: 10000 },
-            { targetOrigin: 'demo2', processFn: setTrainingStatus },
-          );
-          console.log('preTraining', res);
-        }}
-      >
-        训练 {trainingStatus?.status === 'ready' && <Icon type="success" style={{ color: 'green' }} />}
-      </Button>
-      <h2>用户选择</h2>
+        <div>
+          <Button
+            disabled={trainingStatus?.status !== 'ready'}
+            onClick={async () => {
+              const res = await workerRequest(workerRef.current, 'exportTrainModel2', {}, { targetOrigin: 'demo2' });
+              console.log('res', res);
+              if (res?.success && res.data) {
+                downloadJSON(res.data);
+              }
+            }}
+          >
+            导出模型
+          </Button>
+          <Button
+            onClick={async () => {
+              // todo
+            }}
+          >
+            导入模型
+          </Button>
+        </div>
+      </div>
 
       <Form field={field}>
         <Form.Item label="模型类型" name="modelType" required requiredMessage="请选择模型类型">
-          <Select style={{ width: 500 }} dataSource={modelType} />
+          <Select style={{ width: 800 }} hasClear dataSource={modelType} />
         </Form.Item>
         <Form.Item label="模型用途" name="modelCapacity" required requiredMessage="请选择模型用途">
-          <Select style={{ width: 500 }} mode="multiple" dataSource={modelCapacity} />
+          <Select style={{ width: 800 }} hasClear mode="multiple" dataSource={modelCapacity} />
         </Form.Item>
         <Form.Item label="模型厂商" name="modelFactory">
-          <Select style={{ width: 500 }} dataSource={modelFactory.map((i) => ({ label: i, value: i }))} />
+          <Select style={{ width: 800 }} hasClear dataSource={modelFactory.map((i) => ({ label: i, value: i }))} />
+        </Form.Item>
+        <Form.Item
+          style={{ width: 800 }}
+          label={
+            <>
+              模型特性&nbsp;
+              {field.getValue('modelType') && field.getValue('modelCapacity')?.length > 0 ? (
+                <Button
+                  text
+                  type="primary"
+                  onClick={async () => {
+                    const values = field.getValues();
+                    // 模型类型和用途都选择时才进行推理
+                    if (values.modelType && values.modelCapacity) {
+                      const userInput: any = [
+                        {
+                          input: {
+                            type: values.modelType || 'llm',
+                            capacity: values.modelCapacity || ['DEEP_THINK', 'T_GEN', 'dke'],
+                            // factory: values.modelFactory || 'Others', // 'Deepseek',
+                          },
+                        },
+                      ];
+                      // 非必填
+                      if (values.modelFactory) {
+                        userInput[0].input.factory = values.modelFactory;
+                      }
+
+                      // 开始推理
+                      const res2 = await workerRequest(
+                        workerRef.current,
+                        'inference2',
+                        trainDataEncoder(userInput)[0].input,
+                        {
+                          targetOrigin: 'demo2',
+                        },
+                      );
+
+                      if (res2.success && res2.data) {
+                        const result = trainDataDecoder(res2.data, userInput[0].input);
+                        console.log('result', res2.data, result);
+                        field.setValue('modelFeatures', result);
+                      } else {
+                        field.setValue('modelFeatures', res2);
+                      }
+                    }
+                  }}
+                >
+                  AI帮您填充
+                </Button>
+              ) : null}
+            </>
+          }
+          name="modelFeatures"
+        >
+          <Table
+            dataSource={Object.keys(modelFeatures || {})
+              .map((k) => {
+                const id = +new Date() + '' + Math.random() * 100000000; // 增加表格唯一值，便于表格更新
+                const content = modelFeatures[k];
+                switch (k) {
+                  // case 'model_name':
+                  //   return { title: '模型名称', content };
+                  case 'base_model_name':
+                    return { id, title: '基础模型名称', content };
+                  case 'input_limit':
+                    return { id, title: '输入限制', content };
+                  case 'output_limit':
+                    return { id, title: '输出限制', content };
+                  case 'input_output_mode':
+                    return { id, title: '输入输出模式', content };
+                  case 'industries':
+                    return { id, title: '行业应用', content };
+                  case 'applications':
+                    return { id, title: '应用场景', content };
+                  case 'model_advantages':
+                    return { id, title: '模型优势', content };
+                  case 'is_open_source':
+                    return { id, title: '是否开源', content };
+
+                  default:
+                    return null;
+                }
+              })
+              .filter((i) => i)}
+          >
+            <Table.Column
+              title="标题"
+              dataIndex="title"
+              width={30}
+              cell={(value, index, record) => {
+                return <Input style={{ width: '100%' }} trim defaultValue={value} placeholder="请输入" />;
+              }}
+            />
+            <Table.Column
+              title="内容"
+              dataIndex="content"
+              width={70}
+              cell={(value, index, record) => {
+                return <Input.TextArea style={{ width: '100%' }} trim defaultValue={value} placeholder="请输入" />;
+              }}
+            />
+          </Table>
         </Form.Item>
       </Form>
-
-      <Button
-        type="primary"
-        onClick={async () => {
-          if (trainingStatus?.status !== 'ready') {
-            Message.warning(`请先点击训练，待训练完成后进行推理`);
-            return;
-          }
-
-          field.validate(async (errors, values) => {
-            if (errors) {
-              // Message.warning(`请填写完整表单`);
-              return;
-            }
-
-            const userInput = [
-              {
-                input: {
-                  type: values.modelType || 'llm',
-                  capacity: values.modelCapacity || ['DEEP_THINK', 'T_GEN', 'dke'],
-                  // factory: values.modelFactory || 'Others', // 'Deepseek',
-                },
-              },
-            ];
-
-            // 开始推理
-            const res2 = await workerRequest(workerRef.current, 'inference2', trainDataEncoder(userInput)[0].input, {
-              targetOrigin: 'demo2',
-            });
-
-            if (res2.success && res2.data) {
-              const result = trainDataDecoder(res2.data, userInput[0].input);
-              console.log('result', res2.data, result);
-              setResult(result);
-            } else {
-              setResult(res2);
-            }
-          });
-
-          return;
-        }}
-      >
-        推理
-      </Button>
-      <h2>模型特性：</h2>
-      {result?.model_name ? (
-        <ul>
-          <li>
-            <strong>模型名称：</strong>
-            {result?.model_name}
-          </li>
-          <li>
-            <strong>基础模型名称：</strong>
-            {result?.base_model_name}
-          </li>
-          <li>
-            <strong>输入限制：</strong>
-            {result?.input_limit}
-          </li>
-          <li>
-            <strong>输出限制：</strong>
-            {result?.output_limit}
-          </li>
-          <li>
-            <strong>输入输出模式：</strong>
-            {result?.input_output_mode}
-          </li>
-          <li>
-            <strong>行业应用：</strong>
-            {result?.industries}
-          </li>
-          <li>
-            <strong>应用场景：</strong>
-            {result?.applications}
-          </li>
-          <li>
-            <strong>模型优势：</strong>
-            {result?.model_advantages}
-          </li>
-          <li>
-            <strong>是否开源：</strong>
-            {result?.is_open_source}
-          </li>
-        </ul>
-      ) : null}
-      {/* <pre>{JSON.stringify(result, null, 2)}</pre> */}
     </div>
   );
 }

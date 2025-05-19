@@ -30,8 +30,8 @@ export const modelFeatures = [
     input_limit: '30720 token',
     output_limit: '2048 token',
     input_output_mode: '文本生成、多任务处理',
-    industries: ['法律，教育，制造业，医疗'],
-    applications: ['文档处理，问答系统，技术文档生成'],
+    industries: '法律，教育，制造业，医疗',
+    applications: '文档处理，问答系统，技术文档生成',
     model_advantages: '长文本处理能力强、多任务学习、低资源语言支持',
     is_open_source: '是（部分）',
   },
@@ -263,7 +263,7 @@ export function trainDataDecoder(predictData, inputData) {
     output_limit: feature?.output_limit,
     input_output_mode: feature?.input_output_mode,
     industries: feature?.industries,
-    applications: inputData.capacity.map((m) => modelCapacity.find((n) => n?.value === m)?.label).join(','), // 根据输入用途拼接
+    applications: inputData.capacity.map((m) => modelCapacity.find((n) => n?.value === m)?.label).join('，'), // 根据输入用途拼接
     model_advantages: feature?.model_advantages,
     is_open_source: feature?.is_open_source,
   };

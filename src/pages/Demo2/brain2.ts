@@ -96,7 +96,12 @@ async function inference2(data) {
   return ret;
 }
 
-const eventHandlers = { preTraining, inference, preTraining2, inference2 };
+async function exportTrainModel2() {
+  const ret = net2.toJSON();
+  return ret;
+}
+
+const eventHandlers = { preTraining, inference, preTraining2, inference2, exportTrainModel2 };
 
 (async function main(argv) {
   const { eventHandlers } = argv || {};
