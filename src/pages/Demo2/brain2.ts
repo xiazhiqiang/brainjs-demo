@@ -1,12 +1,14 @@
 import * as brain from 'brain.js';
 import { workerResponse } from '@/utils';
-import { generateDataset, config as datasetCOnfig, decoder } from './dataset';
-
-// const net = new brain.recurrent.LSTM();
+import { generateDataset, config as datasetCOnfig, decoder, trainDataEncoder, generateTrainData } from './dataset';
 
 // 创建神经网络（输入层9节点 = 3个字段各3个特征）
 let net = new brain.NeuralNetwork({
   hiddenLayers: [6], // 6个隐藏节点
+  activation: 'sigmoid',
+});
+
+let net2 = new brain.NeuralNetwork({
   activation: 'sigmoid',
 });
 
@@ -15,7 +17,6 @@ let preTrainingStatus = '';
 async function preTraining() {
   // 生成并导出数据集
   const trainingData = generateDataset(datasetCOnfig);
-  console.log('trainingData', trainingData);
 
   // 训练模型
   net.train(trainingData, {
@@ -31,7 +32,6 @@ async function preTraining() {
 
   return true;
 }
-
 async function inference(data) {
   const ret: any = net.run(data);
   console.log('inference', data, ret);
@@ -69,7 +69,34 @@ async function inference(data) {
   };
 }
 
-const eventHandlers = { preTraining, inference };
+async function preTraining2(data, processFn) {
+  let trainData = generateTrainData(data?.total || 10);
+  let trainDataEncode = trainDataEncoder(trainData);
+  // console.log('trainData', trainData, trainDataEncode);
+
+  typeof processFn === 'function' && processFn({ status: 'preTraining', msg: '正在训练模型...' });
+
+  // 训练模型
+  net2.train(trainDataEncode, {
+    iterations: 10000,
+    errorThresh: 0.005,
+    // learningRate: 0.001,
+    logPeriod: 1000, // 每隔多少轮打印一次日志
+    log: true,
+  });
+
+  typeof processFn === 'function' && processFn({ status: 'ready', msg: '训练完成！' });
+  preTrainingStatus = 'ready';
+  console.log('训练完成!');
+  return { trainData, trainDataEncode };
+}
+async function inference2(data) {
+  // console.log('inference2 input data', data);
+  const ret: any = net2.run(data);
+  return ret;
+}
+
+const eventHandlers = { preTraining, inference, preTraining2, inference2 };
 
 (async function main(argv) {
   const { eventHandlers } = argv || {};
