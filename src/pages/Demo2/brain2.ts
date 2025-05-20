@@ -8,6 +8,13 @@ let net = new brain.NeuralNetwork({
   activation: 'sigmoid',
 });
 
+// Brain.js的输入层神经元数量由训练数据的特征维度自动推断，无需手动指定。例如，若特征数组为 [x1, x2, x3]，输入层将自动设置为3个神经元。
+// const net = new brain.NeuralNetwork({
+//   hiddenLayers: [特征数 * 2, 特征数] // 示例：输入层由特征数推断，隐藏层为两层
+// });
+// 经验法则：隐藏层神经元数可设为输入特征数的1-3倍，或使用交叉验证调整。
+// 避免过拟合：若数据量较小，建议减少层数或神经元数量。
+// 动态调整：通过训练误差和验证误差对比，逐步优化结构2。
 let net2 = new brain.NeuralNetwork({
   activation: 'sigmoid',
 });

@@ -1,9 +1,16 @@
 # brain-js demo
 
-## 本地
+## Install
 
-```bash
+```sh
+git clone <repo>
+npm install
+```
+
+## Run
+
+```sh
 npm start
 ```
 
-访问：http://localhost:3333/demo1
+访问：http://localhost:3333
