@@ -26,7 +26,7 @@ export async function workerRequest(
     const messageHandler = function (event) {
       const { actionId, origin, response, responseType } = event.data || {};
       if (origin === targetOrigin && id === actionId) {
-        if (responseType === 'process') {
+        if (responseType === 'needProcess') {
           // 响应过程回调
           typeof processFn === 'function' && processFn(response);
         } else {
@@ -60,7 +60,7 @@ export function workerResponse(target, handlers = {}, targetOrigin = '*') {
         // 需要中间回调
         if (actionType === 'needProcess') {
           result.response.data = await handlers[action](data, (processData) => {
-            target.postMessage({ actionId, actionType, origin, responseType: 'process', response: processData });
+            target.postMessage({ actionId, origin, responseType: actionType, response: processData });
           });
         } else {
           // 默认直接调用
@@ -75,6 +75,7 @@ export function workerResponse(target, handlers = {}, targetOrigin = '*') {
   });
 }
 
+// 下载JSON文件
 export function downloadJSON(data, filename = 'data.json') {
   // 1. 将 JSON 转换为格式化字符串
   const jsonString = JSON.stringify(data, null, 2);
@@ -96,4 +97,35 @@ export function downloadJSON(data, filename = 'data.json') {
   // 5. 清理资源
   document.body.removeChild(a);
   URL.revokeObjectURL(url); // 释放内存
+}
+
+// 读取文件JSON文件为对象
+export async function loadJSON(file) {
+  return new Promise((resolve, reject) => {
+    // 1. 创建文件阅读器
+    const reader = new FileReader();
+
+    // 2. 定义读取完成回调
+    reader.onload = function (event: any) {
+      // console.log('reader event', event);
+      try {
+        // 3. 解析 JSON 数据
+        const jsonData = JSON.parse(event?.target?.result || '{}');
+        // console.log('解析成功:', jsonData);
+        resolve(jsonData);
+      } catch (error) {
+        // console.error('JSON 解析失败:', error);
+        reject(error);
+      }
+    };
+
+    // 4. 定义错误处理
+    reader.onerror = function (error) {
+      // console.error('文件读取错误:', error);
+      reject(error);
+    };
+
+    // 5. 开始读取文件（UTF-8编码）
+    reader.readAsText(file, 'UTF-8');
+  });
 }

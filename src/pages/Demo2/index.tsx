@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button, Icon, Select, Form, Field, Message, Table, Input, NumberPicker } from '@alifd/next';
 // @ts-ignore
 import brainWorker from './brain2?worker';
-import { workerRequest, downloadJSON } from '@/utils';
+import { workerRequest, downloadJSON, loadJSON } from '@/utils';
 import {
   generateTrainData,
   trainDataEncoder,
@@ -14,6 +14,8 @@ import {
 
 export default function Demo2() {
   const workerRef = useRef<Worker | null>(null);
+  const inputFileRef = useRef<HTMLInputElement | null>(null);
+
   const [trainNum, setTrainNum] = useState<number>(10000);
   const [trainingStatus, setTrainingStatus] = useState<any>({});
 
@@ -57,10 +59,44 @@ export default function Demo2() {
     <div style={{ padding: 20 }}>
       <h1>Demo2</h1>
       <div style={{ margin: '10px 0' }}>
+        <Button
+          style={{ margin: '0 5px 0 0' }}
+          onClick={async () => {
+            await inputFileRef.current?.click();
+          }}
+        >
+          导入模型
+          <input
+            type="file"
+            accept="*.json"
+            ref={inputFileRef}
+            style={{ display: 'none' }}
+            onChange={async (e: any) => {
+              const file = e.target.files[0]; // 获取选中的文件
+              if (!file) {
+                Message.warning(`未加载到 JSON 文件`);
+                return;
+              }
+
+              try {
+                const data = await loadJSON(file);
+                // console.log('load json data: ', data);
+                const ret = await workerRequest(workerRef.current, 'importTrainModel2', data, {
+                  targetOrigin: 'demo2',
+                  processFn: setTrainingStatus,
+                });
+                console.log('ret', ret);
+              } catch (err) {
+                console.log('load file error: ', err);
+              }
+            }}
+          />
+        </Button>
         <label>预训练数据集：</label>
         <NumberPicker min={1} defaultValue={trainNum} onChange={setTrainNum} />
         <span style={{ margin: '0 4px' }}>条数据</span>
         <Button
+          style={{ margin: '0 5px 0 0' }}
           type="primary"
           loading={trainingStatus?.status === 'preTraining'}
           onClick={async () => {
@@ -83,27 +119,19 @@ export default function Demo2() {
           训练
         </Button>
 
-        <div>
-          <Button
-            disabled={trainingStatus?.status !== 'ready'}
-            onClick={async () => {
-              const res = await workerRequest(workerRef.current, 'exportTrainModel2', {}, { targetOrigin: 'demo2' });
-              console.log('res', res);
-              if (res?.success && res.data) {
-                downloadJSON(res.data);
-              }
-            }}
-          >
-            导出模型
-          </Button>
-          <Button
-            onClick={async () => {
-              // todo
-            }}
-          >
-            导入模型
-          </Button>
-        </div>
+        <Button
+          style={{ margin: '0 5px 0 0' }}
+          disabled={trainingStatus?.status !== 'ready'}
+          onClick={async () => {
+            const res = await workerRequest(workerRef.current, 'exportTrainModel2', {}, { targetOrigin: 'demo2' });
+            // console.log('res', res);
+            if (res?.success && res.data) {
+              downloadJSON(res.data);
+            }
+          }}
+        >
+          导出模型
+        </Button>
       </div>
 
       <Form field={field}>
@@ -120,11 +148,14 @@ export default function Demo2() {
           style={{ width: 800 }}
           label={
             <>
-              模型特性&nbsp;
-              {field.getValue('modelType') && field.getValue('modelCapacity')?.length > 0 ? (
+              模型特性
+              {field.getValue('modelType') &&
+              field.getValue('modelCapacity')?.length > 0 &&
+              trainingStatus?.status === 'ready' ? (
                 <Button
                   text
                   type="primary"
+                  style={{ margin: '0 0 0 10px' }}
                   onClick={async () => {
                     const values = field.getValues();
                     // 模型类型和用途都选择时才进行推理
@@ -153,12 +184,14 @@ export default function Demo2() {
                         },
                       );
 
+                      // console.log('inference2 result: ', res2);
                       if (res2.success && res2.data) {
                         const result = trainDataDecoder(res2.data, userInput[0].input);
-                        console.log('result', res2.data, result);
+                        // console.log('result', res2.data, result);
                         field.setValue('modelFeatures', result);
                       } else {
-                        field.setValue('modelFeatures', res2);
+                        console.log('inference2 error: ', res2);
+                        // field.setValue('modelFeatures', res2);
                       }
                     }
                   }}

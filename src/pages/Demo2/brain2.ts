@@ -88,7 +88,7 @@ async function preTraining2(data, processFn) {
   typeof processFn === 'function' && processFn({ status: 'ready', msg: '训练完成！' });
   preTrainingStatus = 'ready';
   console.log('训练完成!');
-  return { trainData, trainDataEncode };
+  return { preTrainingStatus, trainData, trainDataEncode };
 }
 async function inference2(data) {
   // console.log('inference2 input data', data);
@@ -96,12 +96,23 @@ async function inference2(data) {
   return ret;
 }
 
+// 导出模型
 async function exportTrainModel2() {
   const ret = net2.toJSON();
   return ret;
 }
 
-const eventHandlers = { preTraining, inference, preTraining2, inference2, exportTrainModel2 };
+// 导入模型
+async function importTrainModel2(data, processFn) {
+  if (data && data?.type === 'NeuralNetwork') {
+    net2 = new brain.NeuralNetwork();
+    net2.fromJSON(data);
+    preTrainingStatus = 'ready';
+    typeof processFn === 'function' && processFn({ status: 'ready', msg: '模型导入成功' });
+  }
+}
+
+const eventHandlers = { preTraining, inference, preTraining2, inference2, exportTrainModel2, importTrainModel2 };
 
 (async function main(argv) {
   const { eventHandlers } = argv || {};
